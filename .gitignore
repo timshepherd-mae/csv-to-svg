@@ -1,0 +1,9 @@
+SolutionDumps/
+Superceded/
+
+.vs/
+bin/
+obj/
+
+*.user
+*.suo
