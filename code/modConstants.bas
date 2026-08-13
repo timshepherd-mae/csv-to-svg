@@ -29,11 +29,11 @@ Public Const KEY_FONT_SIZE As String = "_fontsize"
 Public Const KEY_WRAPPED_LINES As String = "_wrappedlines"
 
 ' Text layout keys
-Public Const MAX_FONT_SIZE As Long = 18
+Public Const MAX_FONT_SIZE As Long = 22
 Public Const MIN_FONT_SIZE As Long = 8
 
-Public Const TEXT_MARGIN_X As Long = 14
-Public Const TEXT_MARGIN_Y As Long = 12
+Public Const TEXT_MARGIN_X As Long = 8
+Public Const TEXT_MARGIN_Y As Long = 8
 
 Public Const LINE_HEIGHT_FACTOR As Double = 1.2
 Public Const APPROX_CHAR_WIDTH_FACTOR As Double = 0.55
