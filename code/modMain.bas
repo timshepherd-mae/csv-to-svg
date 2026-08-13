@@ -99,6 +99,8 @@ ContinueLoop:
         Err.Raise vbObjectError + 1002, "BuildSvgFromCsv", "No shape rows found in CSV."
     End If
 
+    AnalyseTextLayout shapes
+    
     WriteSvgFile svgPath, shapes, pageSettings
 
     MsgBox "SVG written:" & vbCrLf & svgPath, vbInformation, "CSV-to-SVG complete"

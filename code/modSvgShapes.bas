@@ -54,17 +54,60 @@ Public Function BuildShapeSvg(ByVal shape As Object) As String
               """ stroke=""" & XmlSafeAttribute(CStr(shape(KEY_STROKECOL))) & _
               """ />" & vbCrLf
 
-    sb = sb & "      <text x=""" & SvgNum(cx) & _
-              """ y=""" & SvgNum(cy) & _
-              """ fill=""" & XmlSafeAttribute(CStr(shape(KEY_TEXTCOL))) & _
-              """>" & _
-              XmlSafeText(CStr(shape(KEY_CAPTION))) & _
-              "</text>" & vbCrLf
+    sb = sb & BuildWrappedCaptionSvg(shape, cx, cy)
 
     sb = sb & "    </g>" & vbCrLf
-    sb = sb & "  </a>" & vbCrLf
+    sb = sb & " </a>" & vbCrLf
 
     BuildShapeSvg = sb
+
+End Function
+
+Private Function BuildWrappedCaptionSvg( _
+    ByVal shape As Object, _
+    ByVal cx As Double, _
+    ByVal cy As Double) As String
+
+    Dim sb As String
+    Dim wrappedLines As Collection
+    Dim fontSize As Long
+    Dim lineHeight As Double
+    Dim firstY As Double
+    Dim lineY As Double
+    Dim i As Long
+
+    fontSize = CLng(shape(KEY_FONT_SIZE))
+    Set wrappedLines = shape(KEY_WRAPPED_LINES)
+
+    lineHeight = CDbl(fontSize) * LINE_HEIGHT_FACTOR
+
+    firstY = cy - (((wrappedLines.Count - 1) * lineHeight) / 2)
+
+    sb = sb & "      <text" & _
+              " x=""" & SvgNum(cx) & """" & _
+              " y=""" & SvgNum(cy) & """" & _
+              " fill=""" & XmlSafeAttribute(CStr(shape(KEY_TEXTCOL))) & """" & _
+              " font-size=""" & CStr(fontSize) & """" & _
+              " text-anchor=""middle""" & _
+              " dominant-baseline=""middle""" & _
+              ">" & vbCrLf
+
+    For i = 1 To wrappedLines.Count
+
+        lineY = firstY + ((i - 1) * lineHeight)
+
+        sb = sb & "        <tspan" & _
+                  " x=""" & SvgNum(cx) & """" & _
+                  " y=""" & SvgNum(lineY) & """" & _
+                  ">" & _
+                  XmlSafeText(CStr(wrappedLines(i))) & _
+                  "</tspan>" & vbCrLf
+
+    Next i
+
+    sb = sb & "      </text>" & vbCrLf
+
+    BuildWrappedCaptionSvg = sb
 
 End Function
 

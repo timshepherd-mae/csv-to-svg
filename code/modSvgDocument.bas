@@ -32,11 +32,11 @@ Public Function BuildSvgText( _
     sb = sb & "  <title>" & XmlSafeText(pageTitle) & "</title>" & vbCrLf
 
     sb = sb & "  <style>" & vbCrLf
-    sb = sb & "    text { font-family: Arial, Helvetica, sans-serif; font-size: 18px; dominant-baseline: middle; text-anchor: middle; }" & vbCrLf
+    sb = sb & "    text { font-family: Arial, Helvetica, sans-serif; dominant-baseline: middle; text-anchor: middle; }" & vbCrLf
     sb = sb & "    .page-title { font-size: 34px; font-weight: bold; text-anchor: start; dominant-baseline: hanging; }" & vbCrLf
     sb = sb & "    rect { stroke-width: 2; }" & vbCrLf
     sb = sb & "  </style>" & vbCrLf
-
+    
     sb = sb & "  <rect x=""0"" y=""0""" & _
               " width=""" & canvasWidth & """" & _
               " height=""" & canvasHeight & """" & _
