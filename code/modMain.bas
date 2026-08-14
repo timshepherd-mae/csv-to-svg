@@ -84,6 +84,9 @@ Public Sub BuildSvgFromCsv(ByVal csvPath As String)
             pageSettings(KEY_PAGETITLE) = rowData(KEY_PAGETITLE)
             pageSettings(KEY_BACKGROUND) = rowData(KEY_BACKGROUND)
             pageSettings(KEY_TITLECOLOUR) = rowData(KEY_TITLECOLOUR)
+
+            pageSettings(KEY_HGRID) = rowData(KEY_HGRID)
+            pageSettings(KEY_VGRID) = rowData(KEY_VGRID)
     
         ElseIf LCase$(rowType) = "rect" Then
     
@@ -99,6 +102,8 @@ ContinueLoop:
         Err.Raise vbObjectError + 1002, "BuildSvgFromCsv", "No shape rows found in CSV."
     End If
 
+    ApplyGridLayout shapes, pageSettings
+            
     AnalyseTextLayout shapes
     
     WriteSvgFile svgPath, shapes, pageSettings

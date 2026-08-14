@@ -245,3 +245,69 @@ Private Sub AddLongWordChunks( _
     Loop
 
 End Sub
+
+End Sub
+
+Private Function CalculateGridX(ByVal gridCol As Long) As Double
+
+    Const FIRST_X As Double = 50
+    Const COLUMN_SPACING As Double = 470
+
+    CalculateGridX = FIRST_X + ((gridCol - 1) * COLUMN_SPACING)
+
+End Function
+
+Private Function CalculateGridY(ByVal gridRow As Long) As Double
+
+    Const FIRST_Y As Double = 100
+    Const ROW_SPACING As Double = 160
+
+    CalculateGridY = FIRST_Y + ((gridRow - 1) * ROW_SPACING)
+
+End Function
+
+Public Sub ApplyGridLayout( _
+    ByVal shapes As Collection, _
+    ByVal pageSettings As Object)
+
+    Dim shape As Object
+
+    For Each shape In shapes
+
+        shape(KEY_POSX) = GridColumnToX( _
+            CLng(shape(KEY_GRIDCOL)), _
+            CStr(pageSettings(KEY_HGRID)) _
+        )
+
+        shape(KEY_POSY) = GridRowToY( _
+            CLng(shape(KEY_GRIDROW)), _
+            CStr(pageSettings(KEY_VGRID)) _
+        )
+
+    Next shape
+
+End Sub
+
+Private Function GridColumnToX( _
+    ByVal gridCol As Long, _
+    ByVal hGridText As String) As Double
+
+    Dim values As Variant
+
+    values = Split(hGridText, "|")
+
+    GridColumnToX = CDbl(values(gridCol - 1))
+
+End Function
+
+Private Function GridRowToY( _
+    ByVal gridRow As Long, _
+    ByVal vGridText As String) As Double
+
+    Dim values As Variant
+
+    values = Split(vGridText, "|")
+
+    GridRowToY = CDbl(values(gridRow - 1))
+
+End Function

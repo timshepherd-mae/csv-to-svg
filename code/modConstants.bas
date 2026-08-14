@@ -12,6 +12,12 @@ Public Const KEY_BACKGROUND As String = "background"
 
 Public Const KEY_POSX As String = "posx"
 Public Const KEY_POSY As String = "posy"
+
+Public Const KEY_GRIDCOL As String = "gridcol"
+Public Const KEY_GRIDROW As String = "gridrow"
+Public Const KEY_HGRID As String = "hgrid"
+Public Const KEY_VGRID As String = "vgrid"
+
 Public Const KEY_SIZEX As String = "sizex"
 Public Const KEY_SIZEY As String = "sizey"
 Public Const KEY_RAD As String = "rad"

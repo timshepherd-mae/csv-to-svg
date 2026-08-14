@@ -22,10 +22,13 @@ Public Function ParseShapeRow(ByVal csvLine As String, ByVal keyToIndex As Objec
         shape(KEY_BACKGROUND) = GetFieldValue(fields, keyToIndex, KEY_BACKGROUND)
         shape(KEY_TITLECOLOUR) = GetFieldValue(fields, keyToIndex, KEY_TITLECOLOUR)
 
+        shape(KEY_HGRID) = GetFieldValue(fields, keyToIndex, KEY_HGRID)
+        shape(KEY_VGRID) = GetFieldValue(fields, keyToIndex, KEY_VGRID)
+        
     Else
 
-        shape(KEY_POSX) = ToDbl(GetFieldValue(fields, keyToIndex, KEY_POSX))
-        shape(KEY_POSY) = ToDbl(GetFieldValue(fields, keyToIndex, KEY_POSY))
+        shape(KEY_GRIDCOL) = CLng(GetFieldValue(fields, keyToIndex, KEY_GRIDCOL))
+        shape(KEY_GRIDROW) = CLng(GetFieldValue(fields, keyToIndex, KEY_GRIDROW))
         shape(KEY_SIZEX) = ToDbl(GetFieldValue(fields, keyToIndex, KEY_SIZEX))
         shape(KEY_SIZEY) = ToDbl(GetFieldValue(fields, keyToIndex, KEY_SIZEY))
         shape(KEY_RAD) = ToDbl(GetFieldValue(fields, keyToIndex, KEY_RAD))

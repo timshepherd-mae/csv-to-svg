@@ -93,8 +93,8 @@ Public Sub ValidateRequiredKeys(ByVal keyToIndex As Object)
     requiredKeys = Array( _
         KEY_ID, _
         KEY_TYPE, _
-        KEY_POSX, _
-        KEY_POSY, _
+        KEY_GRIDCOL, _
+        KEY_GRIDROW, _
         KEY_SIZEX, _
         KEY_SIZEY, _
         KEY_RAD, _
