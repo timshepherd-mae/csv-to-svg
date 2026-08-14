@@ -293,10 +293,15 @@ Private Function GridColumnToX( _
     ByVal hGridText As String) As Double
 
     Dim values As Variant
+    Dim valueText As String
+
+    hGridText = Replace(hGridText, """", "")
 
     values = Split(hGridText, "|")
 
-    GridColumnToX = CDbl(values(gridCol - 1))
+    valueText = Trim$(CStr(values(gridCol - 1)))
+
+    GridColumnToX = CDbl(valueText)
 
 End Function
 
@@ -305,9 +310,14 @@ Private Function GridRowToY( _
     ByVal vGridText As String) As Double
 
     Dim values As Variant
+    Dim valueText As String
+
+    vGridText = Replace(vGridText, """", "")
 
     values = Split(vGridText, "|")
 
-    GridRowToY = CDbl(values(gridRow - 1))
+    valueText = Trim$(CStr(values(gridRow - 1)))
 
+    GridRowToY = CDbl(valueText)
+    
 End Function
