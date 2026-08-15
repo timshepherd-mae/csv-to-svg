@@ -6,36 +6,40 @@ Option Explicit
 ' Purpose:
 '   - Convert a compact route code into a list of route points.
 '   - Use shape socket lanes and corridor lanes.
+'   - Produce labelled route points suitable for debug inspection.
 '   - Do not render SVG yet.
 '
 ' Route example:
 '
 '   ID3-W3|L1-3|D3-1|R1-3|ID9-N3
 '
-' Meaning:
+' Expected labelled points:
 '
-'   ID3-W3
-'       Start at shape ID3, socket lane W3
+'   1: SOCKET ID3-W3
+'   2: ROUTE_ENTRY A
+'   3: ROUTE_BEND B
+'   4: ROUTE_EXIT C
+'   5: SOCKET ID9-N3
 '
-'   L1-3
-'       Move left 1 grid step, stopping on corridor lane 3
+' Expected transition check:
 '
-'   D3-1
-'       Move down 3 grid steps, stopping on corridor lane 1
+'   W3 -> A : horizontal
+'   A -> B : vertical
+'   B -> C : horizontal
+'   C -> N3 : vertical
 '
-'   R1-3
-'       Move right 1 grid step, stopping on corridor lane 3
-'
-'   ID9-N3
-'       Terminate at shape ID9, socket lane N3
-'
-' Notes:
-'   - This parser assumes shapes already have derived KEY_POSX and KEY_POSY.
-'   - This parser assumes shapes also retain KEY_GRIDCOL and KEY_GRIDROW.
-'   - hGrid and vGrid should contain the shape-axis coordinates.
-'   - hGrid/vGrid can be produced from strings such as:
-'       "50|520|990|1460"
-'       "100|260|420|580|740"
+' Assumptions:
+'   - shapes collection contains parsed rect rows.
+'   - each shape contains:
+'       KEY_ID
+'       KEY_GRIDCOL
+'       KEY_GRIDROW
+'       KEY_POSX
+'       KEY_POSY
+'       KEY_SIZEX
+'       KEY_SIZEY
+'   - KEY_POSX and KEY_POSY have already been calculated from hgrid/vgrid.
+'   - hGrid and vGrid are zero-based arrays of shape-axis coordinates.
 ' ============================================================
 
 
@@ -52,6 +56,8 @@ Public Function ParseRouteCode( _
     Dim routePoints As New Collection
     Dim tokens As Variant
     Dim tokenIndex As Long
+    Dim moveCount As Long
+    Dim moveOrdinal As Long
 
     Dim startInfo As Object
     Dim endInfo As Object
@@ -66,6 +72,8 @@ Public Function ParseRouteCode( _
     Dim nextY As Double
 
     Dim tokenText As String
+    Dim routePointLabel As String
+    Dim routePointKind As String
 
     routeCode = Trim$(routeCode)
 
@@ -80,8 +88,15 @@ Public Function ParseRouteCode( _
                   "Route code must contain at least a start and end token."
     End If
 
+    moveCount = UBound(tokens) - 1
+
+    If moveCount < 1 Then
+        Err.Raise vbObjectError + 3002, "ParseRouteCode", _
+                  "Route code must contain at least one movement token between the start and end sockets."
+    End If
+
     ' --------------------------------------------------------
-    ' Start token, e.g. ID3-W3
+    ' Start socket token, e.g. ID3-W3
     ' --------------------------------------------------------
 
     Set startInfo = ResolveEndpointToken(CStr(tokens(0)), shapes)
@@ -94,19 +109,26 @@ Public Function ParseRouteCode( _
     routePoints.Add CreateRoutePoint( _
         currentX, _
         currentY, _
-        "START " & CStr(tokens(0)) _
+        "SOCKET", _
+        CStr(tokens(0)), _
+        CStr(startInfo("socketid")), _
+        "SOCKET " & CStr(tokens(0)) _
     )
 
     ' --------------------------------------------------------
-    ' Middle movement tokens, e.g. L1-3, D3-1, R1-3
+    ' Movement tokens, e.g. L1-3, D3-1, R1-3
     ' --------------------------------------------------------
+
+    moveOrdinal = 0
 
     For tokenIndex = 1 To UBound(tokens) - 1
 
+        moveOrdinal = moveOrdinal + 1
         tokenText = Trim$(CStr(tokens(tokenIndex)))
 
         If Len(tokenText) = 0 Then
-            GoTo ContinueTokenLoop
+            Err.Raise vbObjectError + 3003, "ParseRouteCode", _
+                      "Blank movement token found in route code: " & routeCode
         End If
 
         Set moveInfo = ParseMoveToken(tokenText)
@@ -151,25 +173,30 @@ Public Function ParseRouteCode( _
 
             Case Else
 
-                Err.Raise vbObjectError + 3002, "ParseRouteCode", _
+                Err.Raise vbObjectError + 3004, "ParseRouteCode", _
                           "Unsupported route direction: " & CStr(moveInfo("direction"))
 
         End Select
 
+        routePointLabel = RoutePointLabelFromOrdinal(moveOrdinal)
+        routePointKind = RoutePointKindFromOrdinal(moveOrdinal, moveCount)
+
         routePoints.Add CreateRoutePoint( _
             nextX, _
             nextY, _
-            "MOVE " & tokenText _
+            routePointKind, _
+            routePointLabel, _
+            routePointLabel, _
+            routePointKind & " " & routePointLabel _
         )
 
         currentX = nextX
         currentY = nextY
 
-ContinueTokenLoop:
     Next tokenIndex
 
     ' --------------------------------------------------------
-    ' End token, e.g. ID9-N3
+    ' End socket token, e.g. ID9-N3
     ' --------------------------------------------------------
 
     Set endInfo = ResolveEndpointToken(CStr(tokens(UBound(tokens))), shapes)
@@ -177,7 +204,10 @@ ContinueTokenLoop:
     routePoints.Add CreateRoutePoint( _
         CDbl(endInfo("x")), _
         CDbl(endInfo("y")), _
-        "END " & CStr(tokens(UBound(tokens))) _
+        "SOCKET", _
+        CStr(tokens(UBound(tokens))), _
+        CStr(endInfo("socketid")), _
+        "SOCKET " & CStr(tokens(UBound(tokens))) _
     )
 
     Set ParseRouteCode = routePoints
@@ -186,7 +216,7 @@ End Function
 
 
 ' ============================================================
-' Optional helper for testing in Immediate Window
+' Debug helper
 ' ============================================================
 
 Public Sub DebugRouteCode( _
@@ -203,6 +233,7 @@ Public Sub DebugRouteCode( _
 
     Debug.Print "ROUTE: " & routeCode
     Debug.Print "POINT COUNT: " & points.Count
+    Debug.Print vbNullString
 
     For i = 1 To points.Count
 
@@ -216,17 +247,81 @@ Public Sub DebugRouteCode( _
 
     Next i
 
+    Debug.Print vbNullString
+    Debug.Print "Transition Check"
+
+    DebugRouteTransitions points
+
 End Sub
+
+
+Private Sub DebugRouteTransitions(ByVal points As Collection)
+
+    Dim i As Long
+    Dim p1 As Object
+    Dim p2 As Object
+    Dim fromName As String
+    Dim toName As String
+    Dim orientation As String
+
+    If points.Count < 2 Then Exit Sub
+
+    For i = 1 To points.Count - 1
+
+        Set p1 = points(i)
+        Set p2 = points(i + 1)
+
+        fromName = CStr(p1("transitionname"))
+        toName = CStr(p2("transitionname"))
+
+        orientation = GetTransitionOrientation( _
+            CDbl(p1("x")), _
+            CDbl(p1("y")), _
+            CDbl(p2("x")), _
+            CDbl(p2("y")) _
+        )
+
+        Debug.Print fromName & " -> " & toName & " : " & orientation
+
+    Next i
+
+End Sub
+
+
+Private Function GetTransitionOrientation( _
+    ByVal x1 As Double, _
+    ByVal y1 As Double, _
+    ByVal x2 As Double, _
+    ByVal y2 As Double) As String
+
+    Const TOLERANCE As Double = 0.0001
+
+    If Abs(y1 - y2) <= TOLERANCE And Abs(x1 - x2) > TOLERANCE Then
+        GetTransitionOrientation = "horizontal"
+
+    ElseIf Abs(x1 - x2) <= TOLERANCE And Abs(y1 - y2) > TOLERANCE Then
+        GetTransitionOrientation = "vertical"
+
+    ElseIf Abs(x1 - x2) <= TOLERANCE And Abs(y1 - y2) <= TOLERANCE Then
+        GetTransitionOrientation = "zero-length"
+
+    Else
+        GetTransitionOrientation = "diagonal"
+
+    End If
+
+End Function
 
 
 ' ============================================================
 ' Axis parsing helper
 '
-' This is useful if your _META values are stored as:
-'   hgrid = 50|520|990|1460
-'   vgrid = 100|260|420|580|740
+' Input example:
+'   50|520|990|1460
 '
-' It returns a zero-based array of Doubles.
+' Returns:
+'   zero-based Double array
+'
 ' Grid index 1 maps to array index 0.
 ' ============================================================
 
@@ -428,6 +523,9 @@ Private Function ResolveSocketLane( _
     Set ResolveSocketLane = CreateRoutePoint( _
         px, _
         py, _
+        "SOCKET", _
+        socketId, _
+        socketId, _
         "SOCKET " & socketId _
     )
 
@@ -513,14 +611,14 @@ End Function
 '   Used when a move is U or D.
 '   The corridor lies between two vGrid shape axes.
 '
-' Lane numbering is always absolute within the gap:
+' Lane numbering:
 '
-'   For vertical corridor lanes:
+'   Vertical corridor lane:
 '       lane 1 = left side of gap
 '       lane 2 = centre of gap
 '       lane 3 = right side of gap
 '
-'   For horizontal corridor lanes:
+'   Horizontal corridor lane:
 '       lane 1 = top side of gap
 '       lane 2 = centre of gap
 '       lane 3 = lower side of gap
@@ -609,10 +707,6 @@ Private Function InterpolateLane( _
     ByVal axisB As Double, _
     ByVal laneNumber As Long) As Double
 
-    ' Lane 1 = 25%
-    ' Lane 2 = 50%
-    ' Lane 3 = 75%
-
     Select Case laneNumber
 
         Case 1
@@ -686,15 +780,54 @@ End Function
 
 
 ' ============================================================
+' Route point naming
+' ============================================================
+
+Private Function RoutePointLabelFromOrdinal(ByVal moveOrdinal As Long) As String
+
+    ' 1 = A
+    ' 2 = B
+    ' 3 = C
+    ' 4 = D
+    '
+    ' For this proof of concept, 26 intermediate points is enough.
+    ' If needed later, this can be expanded to AA, AB, AC.
+
+    If moveOrdinal < 1 Or moveOrdinal > 26 Then
+        Err.Raise vbObjectError + 3120, "RoutePointLabelFromOrdinal", _
+                  "Route point ordinal is outside supported range 1 to 26."
+    End If
+
+    RoutePointLabelFromOrdinal = Chr$(64 + moveOrdinal)
+
+End Function
+
+
+Private Function RoutePointKindFromOrdinal( _
+    ByVal moveOrdinal As Long, _
+    ByVal moveCount As Long) As String
+
+    If moveOrdinal = 1 Then
+        RoutePointKindFromOrdinal = "ROUTE_ENTRY"
+
+    ElseIf moveOrdinal = moveCount Then
+        RoutePointKindFromOrdinal = "ROUTE_EXIT"
+
+    Else
+        RoutePointKindFromOrdinal = "ROUTE_BEND"
+
+    End If
+
+End Function
+
+
+' ============================================================
 ' Axis helpers
 ' ============================================================
 
 Private Function GetGridAxisValue( _
     ByVal axisValues As Variant, _
     ByVal gridIndex As Long) As Double
-
-    ' Grid index is 1-based.
-    ' Array index is assumed to be zero-based.
 
     Dim arrayIndex As Long
 
@@ -730,6 +863,9 @@ End Function
 Private Function CreateRoutePoint( _
     ByVal x As Double, _
     ByVal y As Double, _
+    ByVal pointKind As String, _
+    ByVal label As String, _
+    ByVal transitionName As String, _
     ByVal description As String) As Object
 
     Dim point As Object
@@ -739,6 +875,9 @@ Private Function CreateRoutePoint( _
 
     point("x") = x
     point("y") = y
+    point("kind") = pointKind
+    point("label") = label
+    point("transitionname") = transitionName
     point("description") = description
 
     Set CreateRoutePoint = point
@@ -781,77 +920,5 @@ Private Function MaxLong(ByVal a As Long, ByVal b As Long) As Long
     Else
         MaxLong = b
     End If
-
-End Function
-
-
-' ============================================================
-'
-' TEST HARNESS
-'
-' ============================================================
-
-' ============================================================
-' Proof-of-concept runner
-'
-' Run this procedure directly from the VBA editor.
-'
-' It creates a small fake shape collection and calls:
-'   DebugRouteCode
-'
-' Output appears in the Immediate Window.
-' ============================================================
-
-Public Sub TestRoutingProofOfConcept()
-
-    Dim shapes As Collection
-    Dim hGrid As Variant
-    Dim vGrid As Variant
-    Dim routeCode As String
-
-    Set shapes = New Collection
-
-    hGrid = ParseGridAxisList("50|520|990|1460")
-    vGrid = ParseGridAxisList("70|150|275|400|525|650|775")
-
-    ' Test shapes.
-    ' These are deliberately minimal dictionaries containing only
-    ' the fields required by the routing proof-of-concept.
-    shapes.Add CreateTestRoutingShape("3", 3, 1, hGrid, vGrid, 300, 80)
-    shapes.Add CreateTestRoutingShape("9", 3, 4, hGrid, vGrid, 300, 80)
-
-    routeCode = "ID3-W3|L1-3|D3-1|R1-3|ID9-N3"
-
-    DebugRouteCode routeCode, shapes, hGrid, vGrid
-
-End Sub
-
-Private Function CreateTestRoutingShape( _
-    ByVal idText As String, _
-    ByVal gridCol As Long, _
-    ByVal gridRow As Long, _
-    ByVal hGrid As Variant, _
-    ByVal vGrid As Variant, _
-    ByVal sizeX As Double, _
-    ByVal sizeY As Double) As Object
-
-    Dim shape As Object
-
-    Set shape = CreateObject("Scripting.Dictionary")
-    shape.CompareMode = vbTextCompare
-
-    shape(KEY_ID) = idText
-    shape(KEY_GRIDCOL) = gridCol
-    shape(KEY_GRIDROW) = gridRow
-
-    ' In the current Phase 1 model, hGrid/vGrid values are layout coordinates.
-    ' They are used here as the calculated top-left position of the shape.
-    shape(KEY_POSX) = CDbl(hGrid(gridCol - 1))
-    shape(KEY_POSY) = CDbl(vGrid(gridRow - 1))
-
-    shape(KEY_SIZEX) = sizeX
-    shape(KEY_SIZEY) = sizeY
-
-    Set CreateTestRoutingShape = shape
 
 End Function
