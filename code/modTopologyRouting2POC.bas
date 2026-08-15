@@ -5,57 +5,88 @@ Option Explicit
 '
 ' Concept 2 topology-routing proof of concept.
 '
-' Key rules:
+' Purpose:
+'   - Test topology-based route parsing.
+'   - Output route vertices with explicit vertex types.
+'   - Do not render SVG yet.
 '
-'   1. The start socket determines the exit direction.
+' Concept 2 route grammar:
 '
-'      W socket exits left.
-'      E socket exits right.
-'      N socket exits up.
-'      S socket exits down.
+'   START TOKEN:
+'       ID3-W3-3
 '
-'   2. The start token may include a target route-corridor lane.
+'       Shape ID      = ID3
+'       Socket        = W3
+'       Route lane    = 3
 '
-'      ID3-W3-3
+'       If route lane is omitted:
 '
-'      Means:
-'        Shape ID3
-'        Socket W3
-'        Exit from socket W3
-'        Enter route corridor lane 3
+'       ID3-W3
 '
-'      If omitted:
+'       then route lane defaults to 2.
 '
-'        ID3-W3
+'   MOVE TOKEN:
+'       D3-1
 '
-'      then route lane defaults to 2.
+'       Direction     = D
+'       Steps         = 3
+'       Route lane    = 1
 '
-'   3. Middle move tokens are:
+'       If route lane is omitted:
 '
-'      D3-1
-'      R1-3
+'       D3
 '
-'      Direction = first character.
-'      Steps = number after direction.
-'      Lane = number after hyphen.
+'       then route lane defaults to 2.
 '
-'      If lane is omitted:
+'   END TOKEN:
+'       ID9-N3
 '
-'        D3
+'       Shape ID      = ID9
+'       Socket        = N3
 '
-'      then route lane defaults to 2.
+' Key topology rule:
 '
-'   4. The end token is only:
+'   The start socket determines the initial exit direction.
 '
-'      ID9-N3
+'       W socket exits left
+'       E socket exits right
+'       N socket exits up
+'       S socket exits down
 '
-'      The destination socket determines final entry direction.
+'   The destination socket determines the final entry direction.
 '
-'   5. This POC outputs route vertices only.
-'      It does not generate SVG yet.
+'       N socket is entered from above
+'       S socket is entered from below
+'       W socket is entered from the left
+'       E socket is entered from the right
+'
+' Vertex types:
+'
+'   SOCKET_START
+'   ROUTE_ENTRY
+'   ROUTE_BEND
+'   ROUTE_EXIT
+'   SOCKET_END
+'
+' Test routes from current diagram:
+'
+'   ROUTE 1:
+'       ID3-W3-3|D3-1|R1-3|ID9-N3
+'
+'   ROUTE 2:
+'       ID3-W1-1|D5-2|R1-1|ID9-S1
+'
+'   ROUTE 3:
+'       ID3-S2-3|ID6-N2
 ' ============================================================
 
 Private Const DEFAULT_ROUTE_LANE As Long = 2
+
+Private Const VERTEX_SOCKET_START As String = "SOCKET_START"
+Private Const VERTEX_ROUTE_ENTRY As String = "ROUTE_ENTRY"
+Private Const VERTEX_ROUTE_BEND As String = "ROUTE_VERTEX"
+Private Const VERTEX_ROUTE_EXIT As String = "ROUTE_EXIT"
+Private Const VERTEX_SOCKET_END As String = "SOCKET_END"
 
 
 ' ============================================================
@@ -85,7 +116,7 @@ Public Sub TestTopologyRouting2POC()
 
     Debug.Print
     Debug.Print "=================================================="
-    Debug.Print "TOPOLOGY ROUTING 2 POC"
+    Debug.Print "TOPOLOGY ROUTING 2 POC - EXPLICIT VERTEX TYPES"
     Debug.Print "=================================================="
 
     Topo2_TestRoute _
@@ -138,9 +169,13 @@ Private Sub Topo2_TestRoute( _
 
         Debug.Print _
             CStr(i) & ": " & _
-            CStr(p("label")) & _
+            CStr(p("vertextype")) & _
             "  x=" & Topo2_Num(CDbl(p("x"))) & _
             "  y=" & Topo2_Num(CDbl(p("y")))
+
+        Debug.Print _
+            "       " & _
+            CStr(p("label"))
 
     Next i
 
@@ -161,8 +196,8 @@ Public Function Topo2_ParseRouteCode( _
 
     Dim routePoints As New Collection
     Dim tokens As Variant
-    Dim moveTokenCount As Long
     Dim tokenIndex As Long
+    Dim middleMoveCount As Long
 
     Dim startInfo As Object
     Dim endInfo As Object
@@ -197,6 +232,8 @@ Public Function Topo2_ParseRouteCode( _
                   "Route code must include start and end tokens."
     End If
 
+    middleMoveCount = UBound(tokens) - 1
+
     Set startInfo = Topo2_ParseStartToken(CStr(tokens(0)), shapes)
     Set endInfo = Topo2_ParseEndToken(CStr(tokens(UBound(tokens))), shapes)
 
@@ -208,68 +245,102 @@ Public Function Topo2_ParseRouteCode( _
     routePoints.Add Topo2_CreatePoint( _
         currentX, _
         currentY, _
-        "START_SOCKET " & CStr(tokens(0)) _
+        VERTEX_SOCKET_START, _
+        "START " & CStr(tokens(0)) _
     )
 
     ' --------------------------------------------------------
     ' Implicit socket exit.
     '
-    ' This creates point A from the socket side and the
-    ' target route lane in the start token.
+    ' This creates point A.
+    '
+    ' The socket side decides the exit direction.
+    ' The start token's optional final lane value decides the
+    ' route corridor lane.
     ' --------------------------------------------------------
 
     startExitDirection = Topo2_ExitDirectionFromSocket(CStr(startInfo("socketid")))
     startRouteLane = CLng(startInfo("routelane"))
 
-    Select Case startExitDirection
+    If middleMoveCount = 0 Then
 
-        Case "L", "R"
+        ' ----------------------------------------------------
+        ' Direct route.
+        '
+        ' Example:
+        '   ID3-S2-3|ID6-N2
+        '
+        ' There are no explicit middle moves, so A is placed
+        ' between the start and end sockets on the relevant axis.
+        ' ----------------------------------------------------
 
-            vertexX = Topo2_ResolveVerticalRouteCorridorX( _
-                hGrid, _
-                currentGridCol, _
-                1, _
-                startExitDirection, _
-                startRouteLane _
-            )
+        Call Topo2_ResolveDirectRouteEntryPoint( _
+            startInfo, _
+            endInfo, _
+            startExitDirection, _
+            startRouteLane, _
+            vertexX, _
+            vertexY _
+        )
 
-            vertexY = currentY
+    Else
 
-            currentGridCol = Topo2_ApplyHorizontalGridStep( _
-                currentGridCol, _
-                1, _
-                startExitDirection _
-            )
+        ' ----------------------------------------------------
+        ' Standard route with middle moves.
+        ' ----------------------------------------------------
 
-        Case "U", "D"
+        Select Case startExitDirection
 
-            vertexX = currentX
+            Case "L", "R"
 
-            vertexY = Topo2_ResolveHorizontalRouteCorridorY( _
-                vGrid, _
-                currentGridRow, _
-                1, _
-                startExitDirection, _
-                startRouteLane _
-            )
+                vertexX = Topo2_ResolveVerticalRouteCorridorX( _
+                    hGrid, _
+                    currentGridCol, _
+                    1, _
+                    startExitDirection, _
+                    startRouteLane _
+                )
 
-            currentGridRow = Topo2_ApplyVerticalGridStep( _
-                currentGridRow, _
-                1, _
-                startExitDirection _
-            )
+                vertexY = currentY
 
-        Case Else
+                currentGridCol = Topo2_ApplyHorizontalGridStep( _
+                    currentGridCol, _
+                    1, _
+                    startExitDirection _
+                )
 
-            Err.Raise vbObjectError + 5002, "Topo2_ParseRouteCode", _
-                      "Invalid start exit direction."
+            Case "U", "D"
 
-    End Select
+                vertexX = currentX
+
+                vertexY = Topo2_ResolveHorizontalRouteCorridorY( _
+                    vGrid, _
+                    currentGridRow, _
+                    1, _
+                    startExitDirection, _
+                    startRouteLane _
+                )
+
+                currentGridRow = Topo2_ApplyVerticalGridStep( _
+                    currentGridRow, _
+                    1, _
+                    startExitDirection _
+                )
+
+            Case Else
+
+                Err.Raise vbObjectError + 5002, "Topo2_ParseRouteCode", _
+                          "Invalid start exit direction."
+
+        End Select
+
+    End If
 
     routePoints.Add Topo2_CreatePoint( _
         vertexX, _
         vertexY, _
-        "A_IMPLICIT_EXIT_TO_ROUTE_LANE_" & CStr(startRouteLane) _
+        VERTEX_ROUTE_ENTRY, _
+        "A IMPLICIT_EXIT_TO_ROUTE_LANE_" & CStr(startRouteLane) _
     )
 
     currentX = vertexX
@@ -278,17 +349,13 @@ Public Function Topo2_ParseRouteCode( _
     ' --------------------------------------------------------
     ' Middle move tokens.
     '
-    ' If there are no middle move tokens, the route goes:
+    ' The final middle move is destination-aware and creates
+    ' ROUTE_EXIT.
     '
-    '   START_SOCKET -> A -> END_SOCKET
-    '
-    ' which is valid for direct socket-to-socket routing where
-    ' the single route corridor is enough.
+    ' Earlier middle moves create ROUTE_BEND.
     ' --------------------------------------------------------
 
-    moveTokenCount = UBound(tokens) - 1
-
-    If moveTokenCount >= 1 Then
+    If middleMoveCount > 0 Then
 
         For tokenIndex = 1 To UBound(tokens) - 1
 
@@ -306,7 +373,8 @@ Public Function Topo2_ParseRouteCode( _
                 ' Destination-aware final move.
                 '
                 ' The destination socket side determines whether
-                ' final approach must share X or share Y.
+                ' the route exit point must share X or share Y
+                ' with the destination socket.
                 ' ------------------------------------------------
 
                 Select Case Topo2_SocketSide(CStr(endInfo("socketid")))
@@ -331,7 +399,8 @@ Public Function Topo2_ParseRouteCode( _
                 routePoints.Add Topo2_CreatePoint( _
                     vertexX, _
                     vertexY, _
-                    "C_FINAL_ROUTE_EXIT " & CStr(tokens(tokenIndex)) _
+                    VERTEX_ROUTE_EXIT, _
+                    "C FINAL_ROUTE_EXIT " & CStr(tokens(tokenIndex)) _
                 )
 
                 currentX = vertexX
@@ -391,7 +460,8 @@ Public Function Topo2_ParseRouteCode( _
                 routePoints.Add Topo2_CreatePoint( _
                     vertexX, _
                     vertexY, _
-                    "B_ROUTE_TRAVEL " & CStr(tokens(tokenIndex)) _
+                    VERTEX_ROUTE_VERTEX, _
+                    "B ROUTE_TRAVEL " & CStr(tokens(tokenIndex)) _
                 )
 
                 currentX = vertexX
@@ -406,7 +476,8 @@ Public Function Topo2_ParseRouteCode( _
     routePoints.Add Topo2_CreatePoint( _
         CDbl(endInfo("x")), _
         CDbl(endInfo("y")), _
-        "END_SOCKET " & CStr(tokens(UBound(tokens))) _
+        VERTEX_SOCKET_END, _
+        "END " & CStr(tokens(UBound(tokens))) _
     )
 
     Set Topo2_ParseRouteCode = routePoints
@@ -563,6 +634,50 @@ End Function
 
 
 ' ============================================================
+' Direct route entry
+' ============================================================
+
+Private Sub Topo2_ResolveDirectRouteEntryPoint( _
+    ByVal startInfo As Object, _
+    ByVal endInfo As Object, _
+    ByVal startExitDirection As String, _
+    ByVal lane As Long, _
+    ByRef vertexX As Double, _
+    ByRef vertexY As Double)
+
+    Dim startX As Double
+    Dim startY As Double
+    Dim endX As Double
+    Dim endY As Double
+
+    startX = CDbl(startInfo("x"))
+    startY = CDbl(startInfo("y"))
+    endX = CDbl(endInfo("x"))
+    endY = CDbl(endInfo("y"))
+
+    Select Case startExitDirection
+
+        Case "L", "R"
+
+            vertexX = Topo2_InterpolateLane(startX, endX, lane)
+            vertexY = startY
+
+        Case "U", "D"
+
+            vertexX = startX
+            vertexY = Topo2_InterpolateLane(startY, endY, lane)
+
+        Case Else
+
+            Err.Raise vbObjectError + 5035, "Topo2_ResolveDirectRouteEntryPoint", _
+                      "Invalid start exit direction."
+
+    End Select
+
+End Sub
+
+
+' ============================================================
 ' Shape and socket helpers
 ' ============================================================
 
@@ -684,7 +799,12 @@ Private Function Topo2_ResolveSocket( _
 
     End Select
 
-    Set Topo2_ResolveSocket = Topo2_CreatePoint(px, py, "SOCKET " & socketId)
+    Set Topo2_ResolveSocket = Topo2_CreatePoint( _
+        px, _
+        py, _
+        "SOCKET", _
+        "SOCKET " & socketId _
+    )
 
 End Function
 
@@ -867,6 +987,7 @@ End Function
 Private Function Topo2_CreatePoint( _
     ByVal x As Double, _
     ByVal y As Double, _
+    ByVal vertexType As String, _
     ByVal label As String) As Object
 
     Dim point As Object
@@ -876,6 +997,7 @@ Private Function Topo2_CreatePoint( _
 
     point("x") = x
     point("y") = y
+    point("vertextype") = vertexType
     point("label") = label
 
     Set Topo2_CreatePoint = point
@@ -887,25 +1009,18 @@ Private Sub Topo2_PrintRelationshipChecks( _
     ByVal routeName As String, _
     ByVal points As Collection)
 
+    Dim i As Long
+
     Debug.Print "RELATIONSHIP CHECKS FOR " & routeName
 
-    If points.Count = 5 Then
+    For i = 1 To points.Count - 1
 
-        Debug.Print "P1 -> P2 share axis: " & Topo2_ShareAxis(points(1), points(2))
-        Debug.Print "P2 -> P3 share axis: " & Topo2_ShareAxis(points(2), points(3))
-        Debug.Print "P3 -> P4 share axis: " & Topo2_ShareAxis(points(3), points(4))
-        Debug.Print "P4 -> P5 share axis: " & Topo2_ShareAxis(points(4), points(5))
+        Debug.Print _
+            "P" & CStr(i) & " -> P" & CStr(i + 1) & _
+            " share axis: " & _
+            CStr(Topo2_ShareAxis(points(i), points(i + 1)))
 
-    ElseIf points.Count = 3 Then
-
-        Debug.Print "P1 -> P2 share axis: " & Topo2_ShareAxis(points(1), points(2))
-        Debug.Print "P2 -> P3 share axis: " & Topo2_ShareAxis(points(2), points(3))
-
-    Else
-
-        Debug.Print "No relationship rule defined for point count: " & points.Count
-
-    End If
+    Next i
 
 End Sub
 
