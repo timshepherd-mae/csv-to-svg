@@ -52,7 +52,7 @@ Public Sub WriteSvgFile( _
     svgText = BuildSvgText(shapes, pageSettings)
 
     ' DEBUG
-    Debug.Print svgText
+    ' Debug.Print svgText
     
     
 

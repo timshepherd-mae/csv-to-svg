@@ -84,7 +84,7 @@ Private Const DEFAULT_ROUTE_LANE As Long = 2
 
 Private Const VERTEX_SOCKET_START As String = "SOCKET_START"
 Private Const VERTEX_ROUTE_ENTRY As String = "ROUTE_ENTRY"
-Private Const VERTEX_ROUTE_BEND As String = "ROUTE_VERTEX"
+Private Const VERTEX_ROUTE_VERTEX As String = "ROUTE_VERTEX"
 Private Const VERTEX_ROUTE_EXIT As String = "ROUTE_EXIT"
 Private Const VERTEX_SOCKET_END As String = "SOCKET_END"
 
@@ -136,6 +136,41 @@ Public Sub TestTopologyRouting2POC()
     Topo2_TestRoute _
         "ROUTE 3", _
         "ID3-S2-3|ID6-N2", _
+        shapes, _
+        hGrid, _
+        vGrid
+
+End Sub
+
+Public Sub TestTopologyRouting2POC_RealData( _
+    ByVal shapes As Collection, _
+    ByVal pageSettings As Object)
+
+    Dim hGrid As Variant
+    Dim vGrid As Variant
+
+    hGrid = ParseGridAxisList( _
+                CStr(pageSettings(KEY_HGRID)))
+
+    vGrid = ParseGridAxisList( _
+                CStr(pageSettings(KEY_VGRID)))
+
+    Debug.Print
+    Debug.Print
+    Debug.Print "========================================"
+    Debug.Print "TOPOLOGY ROUTING USING REAL SHAPES"
+    Debug.Print "========================================"
+
+    Topo2_TestRoute _
+        "ROUTE 1", _
+        "Ra1-E3-1|D1-1|Ra2-E1", _
+        shapes, _
+        hGrid, _
+        vGrid
+
+    Topo2_TestRoute _
+        "ROUTE 2", _
+        "Ra3-E2-2|D3-2|R2-2|U5-2|Rc2-W2", _
         shapes, _
         hGrid, _
         vGrid
