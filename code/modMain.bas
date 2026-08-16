@@ -106,17 +106,6 @@ ContinueLoop:
 
     AnalyseTextLayout shapes
 
-    ' --------------------------------------------------
-    ' Temporary routing POC integration.
-    '
-    ' Uses the REAL parsed shape collection.
-    ' Outputs to Immediate Window only.
-    ' --------------------------------------------------
-
-    TestTopologyRouting2POC_RealData _
-        shapes, _
-        pageSettings
-
     WriteSvgFile svgPath, shapes, pageSettings
 
     MsgBox "SVG written:" & vbCrLf & svgPath, vbInformation, "CSV-to-SVG complete"
