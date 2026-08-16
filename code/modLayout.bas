@@ -271,18 +271,23 @@ Public Sub ApplyGridLayout( _
     ByVal pageSettings As Object)
 
     Dim shape As Object
+    Dim centreX As Double
+    Dim centreY As Double
 
     For Each shape In shapes
 
-        shape(KEY_POSX) = GridColumnToX( _
+        centreX = GridColumnToX( _
             CLng(shape(KEY_GRIDCOL)), _
             CStr(pageSettings(KEY_HGRID)) _
         )
 
-        shape(KEY_POSY) = GridRowToY( _
+        centreY = GridRowToY( _
             CLng(shape(KEY_GRIDROW)), _
             CStr(pageSettings(KEY_VGRID)) _
         )
+
+        shape(KEY_POSX) = centreX - (CDbl(shape(KEY_SIZEX)) / 2)
+        shape(KEY_POSY) = centreY - (CDbl(shape(KEY_SIZEY)) / 2)
 
     Next shape
 
