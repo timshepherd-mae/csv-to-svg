@@ -83,11 +83,19 @@ Option Explicit
 Private Const DEFAULT_ROUTE_LANE As Long = 2
 
 Private Const VERTEX_SOCKET_START As String = "SOCKET_START"
+Private Const VERTEX_SOCKET_CORRIDOR_ENTRY As String = "SOCKET_CORRIDOR_ENTRY"
 Private Const VERTEX_ROUTE_ENTRY As String = "ROUTE_ENTRY"
 Private Const VERTEX_ROUTE_VERTEX As String = "ROUTE_VERTEX"
 Private Const VERTEX_ROUTE_EXIT As String = "ROUTE_EXIT"
+Private Const VERTEX_SOCKET_CORRIDOR_EXIT As String = "SOCKET_CORRIDOR_EXIT"
 Private Const VERTEX_SOCKET_END As String = "SOCKET_END"
 
+' Temporary POC value.
+' This controls how far outside a shape the socket corridor point sits.
+Private Const SOCKET_CORRIDOR_OFFSET As Double = 20
+
+' Used when there is no next/previous grid axis available.
+Private Const DEFAULT_EXTERNAL_CORRIDOR_GAP As Double = 200
 
 ' ============================================================
 ' Public test harness
@@ -287,99 +295,59 @@ Public Function Topo2_ParseRouteCode( _
     ' --------------------------------------------------------
     ' Implicit socket exit.
     '
-    ' This creates point A.
+    ' This now creates two topology vertices:
     '
-    ' The socket side decides the exit direction.
-    ' The start token's optional final lane value decides the
-    ' route corridor lane.
+    '   1. SOCKET_CORRIDOR_ENTRY
+    '   2. ROUTE_ENTRY
+    '
+    ' The socket corridor point moves away from the socket
+    ' in the only valid direction for that socket side.
+    '
+    ' The route entry point then moves onto the selected
+    ' route-corridor lane.
     ' --------------------------------------------------------
+
+    Dim socketCorridorPoint As Object
+    Dim routeEntryPoint As Object
 
     startExitDirection = Topo2_ExitDirectionFromSocket(CStr(startInfo("socketid")))
     startRouteLane = CLng(startInfo("routelane"))
 
+    Set socketCorridorPoint = Topo2_CreateSocketCorridorPoint( _
+        startInfo, _
+        startExitDirection, _
+        VERTEX_SOCKET_CORRIDOR_ENTRY, _
+        "A SOCKET_CORRIDOR_ENTRY" _
+    )
+
+    routePoints.Add socketCorridorPoint
+
     If middleMoveCount = 0 Then
 
-        ' ----------------------------------------------------
-        ' Direct route.
-        '
-        ' Example:
-        '   ID3-S2-3|ID6-N2
-        '
-        ' There are no explicit middle moves, so A is placed
-        ' between the start and end sockets on the relevant axis.
-        ' ----------------------------------------------------
-
-        Call Topo2_ResolveDirectRouteEntryPoint( _
-            startInfo, _
+        Set routeEntryPoint = Topo2_CreateDirectRouteEntryPoint( _
+            socketCorridorPoint, _
             endInfo, _
             startExitDirection, _
-            startRouteLane, _
-            vertexX, _
-            vertexY _
+            startRouteLane _
         )
 
     Else
 
-        ' ----------------------------------------------------
-        ' Standard route with middle moves.
-        ' ----------------------------------------------------
-
-        Select Case startExitDirection
-
-            Case "L", "R"
-
-                vertexX = Topo2_ResolveVerticalRouteCorridorX( _
-                    hGrid, _
-                    currentGridCol, _
-                    1, _
-                    startExitDirection, _
-                    startRouteLane _
-                )
-
-                vertexY = currentY
-
-                currentGridCol = Topo2_ApplyHorizontalGridStep( _
-                    currentGridCol, _
-                    1, _
-                    startExitDirection _
-                )
-
-            Case "U", "D"
-
-                vertexX = currentX
-
-                vertexY = Topo2_ResolveHorizontalRouteCorridorY( _
-                    vGrid, _
-                    currentGridRow, _
-                    1, _
-                    startExitDirection, _
-                    startRouteLane _
-                )
-
-                currentGridRow = Topo2_ApplyVerticalGridStep( _
-                    currentGridRow, _
-                    1, _
-                    startExitDirection _
-                )
-
-            Case Else
-
-                Err.Raise vbObjectError + 5002, "Topo2_ParseRouteCode", _
-                          "Invalid start exit direction."
-
-        End Select
+        Set routeEntryPoint = Topo2_CreateRouteEntryPointFromSocketCorridor( _
+            socketCorridorPoint, _
+            startInfo, _
+            startExitDirection, _
+            startRouteLane, _
+            hGrid, _
+            vGrid _
+        )
 
     End If
 
-    routePoints.Add Topo2_CreatePoint( _
-        vertexX, _
-        vertexY, _
-        VERTEX_ROUTE_ENTRY, _
-        "A IMPLICIT_EXIT_TO_ROUTE_LANE_" & CStr(startRouteLane) _
-    )
+    routePoints.Add routeEntryPoint
 
-    currentX = vertexX
-    currentY = vertexY
+    currentX = CDbl(routeEntryPoint("x"))
+    currentY = CDbl(routeEntryPoint("y"))
 
     ' --------------------------------------------------------
     ' Middle move tokens.
@@ -404,42 +372,28 @@ Public Function Topo2_ParseRouteCode( _
 
             If isFinalMove Then
 
-                ' ------------------------------------------------
-                ' Destination-aware final move.
-                '
-                ' The destination socket side determines whether
-                ' the route exit point must share X or share Y
-                ' with the destination socket.
-                ' ------------------------------------------------
+                Dim routeExitPoint As Object
+                Dim socketCorridorExitPoint As Object
 
-                Select Case Topo2_SocketSide(CStr(endInfo("socketid")))
-
-                    Case "N", "S"
-
-                        vertexX = CDbl(endInfo("x"))
-                        vertexY = currentY
-
-                    Case "E", "W"
-
-                        vertexX = currentX
-                        vertexY = CDbl(endInfo("y"))
-
-                    Case Else
-
-                        Err.Raise vbObjectError + 5003, "Topo2_ParseRouteCode", _
-                                  "Invalid destination socket side."
-
-                End Select
-
-                routePoints.Add Topo2_CreatePoint( _
-                    vertexX, _
-                    vertexY, _
-                    VERTEX_ROUTE_EXIT, _
+                Set routeExitPoint = Topo2_CreateRouteExitPoint( _
+                    currentX, _
+                    currentY, _
+                    endInfo, _
                     "C FINAL_ROUTE_EXIT " & CStr(tokens(tokenIndex)) _
                 )
 
-                currentX = vertexX
-                currentY = vertexY
+                routePoints.Add routeExitPoint
+
+                Set socketCorridorExitPoint = Topo2_CreateSocketCorridorPointForEnd( _
+                    endInfo, _
+                    VERTEX_SOCKET_CORRIDOR_EXIT, _
+                    "D SOCKET_CORRIDOR_EXIT" _
+                )
+
+                routePoints.Add socketCorridorExitPoint
+
+                currentX = CDbl(socketCorridorExitPoint("x"))
+                currentY = CDbl(socketCorridorExitPoint("y"))
 
             Else
 
@@ -568,6 +522,13 @@ Private Function Topo2_ParseStartToken( _
     result("gridcol") = CLng(shape(KEY_GRIDCOL))
     result("gridrow") = CLng(shape(KEY_GRIDROW))
 
+    result("shapeleft") = CDbl(shape(KEY_POSX))
+    result("shapetop") = CDbl(shape(KEY_POSY))
+    result("shapewidth") = CDbl(shape(KEY_SIZEX))
+    result("shapeheight") = CDbl(shape(KEY_SIZEY))
+    result("shaperight") = CDbl(shape(KEY_POSX)) + CDbl(shape(KEY_SIZEX))
+    result("shapebottom") = CDbl(shape(KEY_POSY)) + CDbl(shape(KEY_SIZEY))
+
     Set Topo2_ParseStartToken = result
 
 End Function
@@ -606,6 +567,13 @@ Private Function Topo2_ParseEndToken( _
     result("y") = socketPoint("y")
     result("gridcol") = CLng(shape(KEY_GRIDCOL))
     result("gridrow") = CLng(shape(KEY_GRIDROW))
+
+    result("shapeleft") = CDbl(shape(KEY_POSX))
+    result("shapetop") = CDbl(shape(KEY_POSY))
+    result("shapewidth") = CDbl(shape(KEY_SIZEX))
+    result("shapeheight") = CDbl(shape(KEY_SIZEY))
+    result("shaperight") = CDbl(shape(KEY_POSX)) + CDbl(shape(KEY_SIZEX))
+    result("shapebottom") = CDbl(shape(KEY_POSY)) + CDbl(shape(KEY_SIZEY))
 
     Set Topo2_ParseEndToken = result
 
@@ -877,6 +845,343 @@ End Function
 
 
 ' ============================================================
+' Socket corridor geometry
+' ============================================================
+
+Private Function Topo2_CreateSocketCorridorPoint( _
+    ByVal endpointInfo As Object, _
+    ByVal exitDirection As String, _
+    ByVal vertexType As String, _
+    ByVal label As String) As Object
+
+    Dim x As Double
+    Dim y As Double
+
+    x = CDbl(endpointInfo("x"))
+    y = CDbl(endpointInfo("y"))
+
+    Select Case UCase$(exitDirection)
+
+        Case "L"
+            x = x - SOCKET_CORRIDOR_OFFSET
+
+        Case "R"
+            x = x + SOCKET_CORRIDOR_OFFSET
+
+        Case "U"
+            y = y - SOCKET_CORRIDOR_OFFSET
+
+        Case "D"
+            y = y + SOCKET_CORRIDOR_OFFSET
+
+        Case Else
+            Err.Raise vbObjectError + 5200, "Topo2_CreateSocketCorridorPoint", _
+                      "Invalid socket corridor exit direction: " & exitDirection
+
+    End Select
+
+    Set Topo2_CreateSocketCorridorPoint = Topo2_CreatePoint( _
+        x, _
+        y, _
+        vertexType, _
+        label _
+    )
+
+End Function
+
+
+Private Function Topo2_CreateSocketCorridorPointForEnd( _
+    ByVal endInfo As Object, _
+    ByVal vertexType As String, _
+    ByVal label As String) As Object
+
+    Dim sideCode As String
+    Dim x As Double
+    Dim y As Double
+
+    sideCode = Topo2_SocketSide(CStr(endInfo("socketid")))
+
+    x = CDbl(endInfo("x"))
+    y = CDbl(endInfo("y"))
+
+    Select Case sideCode
+
+        Case "N"
+            y = y - SOCKET_CORRIDOR_OFFSET
+
+        Case "S"
+            y = y + SOCKET_CORRIDOR_OFFSET
+
+        Case "W"
+            x = x - SOCKET_CORRIDOR_OFFSET
+
+        Case "E"
+            x = x + SOCKET_CORRIDOR_OFFSET
+
+        Case Else
+            Err.Raise vbObjectError + 5201, "Topo2_CreateSocketCorridorPointForEnd", _
+                      "Invalid destination socket side: " & sideCode
+
+    End Select
+
+    Set Topo2_CreateSocketCorridorPointForEnd = Topo2_CreatePoint( _
+        x, _
+        y, _
+        vertexType, _
+        label _
+    )
+
+End Function
+
+
+Private Function Topo2_CreateRouteEntryPointFromSocketCorridor( _
+    ByVal socketCorridorPoint As Object, _
+    ByVal startInfo As Object, _
+    ByVal exitDirection As String, _
+    ByVal lane As Long, _
+    ByVal hGrid As Variant, _
+    ByVal vGrid As Variant) As Object
+
+    Dim x As Double
+    Dim y As Double
+
+    Select Case UCase$(exitDirection)
+
+        Case "L", "R"
+
+            x = Topo2_ResolveRouteCorridorXFromEndpoint( _
+                startInfo, _
+                hGrid, _
+                exitDirection, _
+                lane _
+            )
+
+            y = CDbl(socketCorridorPoint("y"))
+
+        Case "U", "D"
+
+            x = CDbl(socketCorridorPoint("x"))
+
+            y = Topo2_ResolveRouteCorridorYFromEndpoint( _
+                startInfo, _
+                vGrid, _
+                exitDirection, _
+                lane _
+            )
+
+        Case Else
+
+            Err.Raise vbObjectError + 5202, "Topo2_CreateRouteEntryPointFromSocketCorridor", _
+                      "Invalid exit direction: " & exitDirection
+
+    End Select
+
+    Set Topo2_CreateRouteEntryPointFromSocketCorridor = Topo2_CreatePoint( _
+        x, _
+        y, _
+        VERTEX_ROUTE_ENTRY, _
+        "B ROUTE_ENTRY_TO_ROUTE_LANE_" & CStr(lane) _
+    )
+
+End Function
+
+
+Private Function Topo2_CreateDirectRouteEntryPoint( _
+    ByVal socketCorridorPoint As Object, _
+    ByVal endInfo As Object, _
+    ByVal exitDirection As String, _
+    ByVal lane As Long) As Object
+
+    Dim x As Double
+    Dim y As Double
+
+    Select Case UCase$(exitDirection)
+
+        Case "L", "R"
+            x = Topo2_InterpolateLane( _
+                CDbl(socketCorridorPoint("x")), _
+                CDbl(endInfo("x")), _
+                lane _
+            )
+            y = CDbl(socketCorridorPoint("y"))
+
+        Case "U", "D"
+            x = CDbl(socketCorridorPoint("x"))
+            y = Topo2_InterpolateLane( _
+                CDbl(socketCorridorPoint("y")), _
+                CDbl(endInfo("y")), _
+                lane _
+            )
+
+        Case Else
+            Err.Raise vbObjectError + 5203, "Topo2_CreateDirectRouteEntryPoint", _
+                      "Invalid exit direction: " & exitDirection
+
+    End Select
+
+    Set Topo2_CreateDirectRouteEntryPoint = Topo2_CreatePoint( _
+        x, _
+        y, _
+        VERTEX_ROUTE_ENTRY, _
+        "B DIRECT_ROUTE_ENTRY_TO_ROUTE_LANE_" & CStr(lane) _
+    )
+
+End Function
+
+
+Private Function Topo2_CreateRouteExitPoint( _
+    ByVal currentX As Double, _
+    ByVal currentY As Double, _
+    ByVal endInfo As Object, _
+    ByVal label As String) As Object
+
+    Dim sideCode As String
+    Dim x As Double
+    Dim y As Double
+
+    sideCode = Topo2_SocketSide(CStr(endInfo("socketid")))
+
+    Select Case sideCode
+
+        Case "N", "S"
+            x = CDbl(endInfo("x"))
+            y = currentY
+
+        Case "E", "W"
+            x = currentX
+            y = CDbl(endInfo("y"))
+
+        Case Else
+            Err.Raise vbObjectError + 5204, "Topo2_CreateRouteExitPoint", _
+                      "Invalid destination socket side: " & sideCode
+
+    End Select
+
+    Set Topo2_CreateRouteExitPoint = Topo2_CreatePoint( _
+        x, _
+        y, _
+        VERTEX_ROUTE_EXIT, _
+        label _
+    )
+
+End Function
+
+
+Private Function Topo2_ResolveRouteCorridorXFromEndpoint( _
+    ByVal endpointInfo As Object, _
+    ByVal hGrid As Variant, _
+    ByVal directionCode As String, _
+    ByVal lane As Long) As Double
+
+    Dim gridCol As Long
+    Dim shapeLeft As Double
+    Dim shapeRight As Double
+    Dim shapeWidth As Double
+
+    Dim leftBound As Double
+    Dim rightBound As Double
+
+    gridCol = CLng(endpointInfo("gridcol"))
+    shapeLeft = CDbl(endpointInfo("shapeleft"))
+    shapeRight = CDbl(endpointInfo("shaperight"))
+    shapeWidth = CDbl(endpointInfo("shapewidth"))
+
+    Select Case UCase$(directionCode)
+
+        Case "R"
+
+            leftBound = shapeRight
+
+            If gridCol < UBound(hGrid) + 1 Then
+                rightBound = CDbl(hGrid(gridCol))
+            Else
+                rightBound = shapeRight + DEFAULT_EXTERNAL_CORRIDOR_GAP
+            End If
+
+        Case "L"
+
+            rightBound = shapeLeft
+
+            If gridCol > 1 Then
+                leftBound = CDbl(hGrid(gridCol - 2)) + shapeWidth
+            Else
+                leftBound = shapeLeft - DEFAULT_EXTERNAL_CORRIDOR_GAP
+            End If
+
+        Case Else
+
+            Err.Raise vbObjectError + 5210, "Topo2_ResolveRouteCorridorXFromEndpoint", _
+                      "Direction must be L or R."
+
+    End Select
+
+    Topo2_ResolveRouteCorridorXFromEndpoint = Topo2_InterpolateLane( _
+        leftBound, _
+        rightBound, _
+        lane _
+    )
+
+End Function
+
+
+Private Function Topo2_ResolveRouteCorridorYFromEndpoint( _
+    ByVal endpointInfo As Object, _
+    ByVal vGrid As Variant, _
+    ByVal directionCode As String, _
+    ByVal lane As Long) As Double
+
+    Dim gridRow As Long
+    Dim shapeTop As Double
+    Dim shapeBottom As Double
+    Dim shapeHeight As Double
+
+    Dim topBound As Double
+    Dim bottomBound As Double
+
+    gridRow = CLng(endpointInfo("gridrow"))
+    shapeTop = CDbl(endpointInfo("shapetop"))
+    shapeBottom = CDbl(endpointInfo("shapebottom"))
+    shapeHeight = CDbl(endpointInfo("shapeheight"))
+
+    Select Case UCase$(directionCode)
+
+        Case "D"
+
+            topBound = shapeBottom
+
+            If gridRow < UBound(vGrid) + 1 Then
+                bottomBound = CDbl(vGrid(gridRow))
+            Else
+                bottomBound = shapeBottom + DEFAULT_EXTERNAL_CORRIDOR_GAP
+            End If
+
+        Case "U"
+
+            bottomBound = shapeTop
+
+            If gridRow > 1 Then
+                topBound = CDbl(vGrid(gridRow - 2)) + shapeHeight
+            Else
+                topBound = shapeTop - DEFAULT_EXTERNAL_CORRIDOR_GAP
+            End If
+
+        Case Else
+
+            Err.Raise vbObjectError + 5211, "Topo2_ResolveRouteCorridorYFromEndpoint", _
+                      "Direction must be U or D."
+
+    End Select
+
+    Topo2_ResolveRouteCorridorYFromEndpoint = Topo2_InterpolateLane( _
+        topBound, _
+        bottomBound, _
+        lane _
+    )
+
+End Function
+
+
+' ============================================================
 ' Corridor coordinate helpers
 ' ============================================================
 
@@ -1032,7 +1337,10 @@ Private Function Topo2_CreatePoint( _
 
     point("x") = x
     point("y") = y
+
     point("vertextype") = vertexType
+    point("topology_vertex_type") = vertexType
+
     point("label") = label
 
     Set Topo2_CreatePoint = point
