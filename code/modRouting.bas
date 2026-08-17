@@ -1045,15 +1045,25 @@ Private Function ResolveMovementToken( _
     targetX = CDbl(currentPoint(POINT_X))
     targetY = CDbl(currentPoint(POINT_Y))
 
+    Dim currentAxisX As Double
+    Dim currentAxisY As Double
+
+    currentAxisX = NearestFullGridAxis( _
+        targetX, _
+        fullGrid("FullX"))
+
+    currentAxisY = NearestFullGridAxis( _
+        targetY, _
+        fullGrid("FullY"))
+   
+
     Select Case directionCode
 
         Case "R", "L"
 
             targetAxis = GetNthFullGridAxis( _
                 fullGrid("FullX"), _
-                NearestFullGridAxis( _
-                    targetX, _
-                    fullGrid("FullX")), _
+                currentAxisX, _
                 directionCode, _
                 distanceCount _
             )
@@ -1064,9 +1074,7 @@ Private Function ResolveMovementToken( _
 
             targetAxis = GetNthFullGridAxis( _
                 fullGrid("FullY"), _
-                NearestFullGridAxis( _
-                    targetY, _
-                    fullGrid("FullY")), _
+                currentAxisY, _
                 directionCode, _
                 distanceCount _
             )
