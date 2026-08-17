@@ -30,6 +30,8 @@ Public Const KEY_CAPTION As String = "caption"
 Public Const KEY_TOOLTIP As String = "tooltip"
 Public Const KEY_LINKURL As String = "linkurl"
 
+Public Const KEY_ROUTEDEF as String = "routedef"
+
 ' Internal layout keys
 Public Const KEY_FONT_SIZE As String = "_fontsize"
 Public Const KEY_WRAPPED_LINES As String = "_wrappedlines"

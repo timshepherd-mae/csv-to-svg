@@ -31,6 +31,7 @@ Public Sub BuildSvgFromCsv(ByVal csvPath As String)
     Dim headerFields As Variant
     Dim keyToIndex As Object
     Dim shapes As Collection
+    Dim routes As Collection
     Dim i As Long
     
     Dim pageSettings As Object
@@ -65,6 +66,7 @@ Public Sub BuildSvgFromCsv(ByVal csvPath As String)
     ValidateRequiredKeys keyToIndex
 
     Set shapes = New Collection
+    Set routes = New Collection
 
 
     For i = 2 To lines.Count
@@ -91,6 +93,13 @@ Public Sub BuildSvgFromCsv(ByVal csvPath As String)
         ElseIf LCase$(rowType) = "rect" Then
     
             shapes.Add rowData
+
+        ElseIf LCase$(rowType) = "route" Then
+            
+            routes.Add rowData
+
+        Else
+            Debug.Print "Unknown row type: " & rowType
     
         End If
 
@@ -104,33 +113,11 @@ ContinueLoop:
 
     ApplyGridLayout shapes, pageSettings
 
-    ' DEBUG ROUTING HOOK
-    ' ------------------------------------------------------------
-    ' Temporary hard-coded route definitions for simplified routing
-    ' development.
-    '
-    ' These are not yet read from CSV.
-    ' Update the shape IDs and socket IDs below to match your test CSV.
-    '
-    ' Route syntax:
-    '   start | optional movements | end
-    '
-    ' Start:
-    '   shapeID-exitSocket-toCorridorLane
-    '
-    ' Movement:
-    '   moveDirectionAndDistance-toLane
-    '
-    ' End:
-    '   shapeID-entrySocket
-    ' ------------------------------------------------------------
-    Dim debugRoutes As Collection
-    Set debugRoutes = New Collection
-
-    debugRoutes.Add "Ra2-E3-2|D3-1|L1-3|Ra4"
-
-    DebugPrintRoutes shapes, pageSettings, debugRoutes
-
+    DebugPrintRoutesFromCsv _
+        shapes, _
+        pageSettings, _
+        routes
+        
     AnalyseTextLayout shapes
 
     WriteSvgFile svgPath, shapes, pageSettings

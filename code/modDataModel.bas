@@ -14,6 +14,12 @@ Public Function ParseShapeRow(ByVal csvLine As String, ByVal keyToIndex As Objec
 
     rowType = CStr(shape(KEY_TYPE))
 
+    shape(KEY_ROUTEDEF) = GetFieldValue( _
+        fields, _
+        keyToIndex, _
+        KEY_ROUTEDEF _
+    )
+
     If UCase$(rowType) = "_META" Then
 
         shape(KEY_PAGEWIDTH) = GetFieldValue(fields, keyToIndex, KEY_PAGEWIDTH)
@@ -25,8 +31,15 @@ Public Function ParseShapeRow(ByVal csvLine As String, ByVal keyToIndex As Objec
         shape(KEY_HGRID) = GetFieldValue(fields, keyToIndex, KEY_HGRID)
         shape(KEY_VGRID) = GetFieldValue(fields, keyToIndex, KEY_VGRID)
         
-    Else
+    ElseIf LCase$(rowType) = "route" Then
 
+        shape(KEY_ROUTEDEF) = GetFieldValue( _
+            fields, _
+            keyToIndex, _
+            KEY_ROUTEDEF _
+        )
+
+    Else
         shape(KEY_GRIDCOL) = CLng(GetFieldValue(fields, keyToIndex, KEY_GRIDCOL))
         shape(KEY_GRIDROW) = CLng(GetFieldValue(fields, keyToIndex, KEY_GRIDROW))
         shape(KEY_SIZEX) = ToDbl(GetFieldValue(fields, keyToIndex, KEY_SIZEX))

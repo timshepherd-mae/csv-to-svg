@@ -125,6 +125,34 @@ RouteFailed:
 
 End Sub
 
+Public Sub DebugPrintRoutesFromCsv( _
+    ByVal shapes As Collection, _
+    ByVal pageSettings As Object, _
+    ByVal routes As Collection)
+
+    Dim routeStrings As Collection
+    Dim routeRow As Object
+
+    Set routeStrings = New Collection
+
+    For Each routeRow In routes
+
+        If Len(Trim$(CStr(routeRow(KEY_ROUTEDEF)))) > 0 Then
+
+            routeStrings.Add _
+                CStr(routeRow(KEY_ROUTEDEF))
+
+        End If
+
+    Next routeRow
+
+    DebugPrintRoutes _
+        shapes, _
+        pageSettings, _
+        routeStrings
+
+End Sub
+
 
 ' ============================================================
 ' Phase 1: Build SHAPEGRID, CORRIDORGRID and FULLGRID
