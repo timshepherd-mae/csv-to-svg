@@ -44,17 +44,16 @@ End Function
 Public Sub WriteSvgFile( _
     ByVal svgPath As String, _
     ByVal shapes As Collection, _
-    ByVal pageSettings As Object)
+    ByVal pageSettings As Object, _
+    ByVal routes as Collection)
 
     Dim fileNum As Integer
     Dim svgText As String
 
-    svgText = BuildSvgText(shapes, pageSettings)
+    svgText = BuildSvgText(shapes, pageSettings, routes)
 
     ' DEBUG
     ' Debug.Print svgText
-    
-    
 
     fileNum = FreeFile
 

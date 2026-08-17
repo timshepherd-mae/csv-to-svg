@@ -1,6 +1,7 @@
 Public Function BuildSvgText( _
     ByVal shapes As Collection, _
-    ByVal pageSettings As Object) As String
+    ByVal pageSettings As Object, _
+    ByVal routes As Collection) As String
 
     Dim sb As String
     Dim i As Long
@@ -51,11 +52,14 @@ Public Function BuildSvgText( _
                   "</text>" & vbCrLf
     End If
 
+    ' Write route linework before shapes so that shapes remain on top.
+    sb = sb & BuildRoutesSvg(shapes, pageSettings, routes)
+
     For i = 1 To shapes.Count
         Set shape = shapes(i)
         sb = sb & BuildShapeSvg(shape)
     Next i
-
+    
     sb = sb & "</svg>" & vbCrLf
 
     BuildSvgText = sb

@@ -153,6 +153,136 @@ Public Sub DebugPrintRoutesFromCsv( _
 
 End Sub
 
+Public Function BuildRoutesSvg( _
+    ByVal shapes As Collection, _
+    ByVal pageSettings As Object, _
+    ByVal routes As Collection) As String
+
+    Dim sb As String
+    Dim fullGrid As Object
+    Dim shapeIndex As Object
+
+    Dim routeRow As Object
+    Dim routeDef As String
+    Dim routeId As String
+    Dim routePoints As Collection
+
+    If routes Is Nothing Then
+        BuildRoutesSvg = vbNullString
+        Exit Function
+    End If
+
+    If routes.Count = 0 Then
+        BuildRoutesSvg = vbNullString
+        Exit Function
+    End If
+
+    Set fullGrid = BuildFullGrid(pageSettings)
+    Set shapeIndex = BuildShapeIndex(shapes)
+
+    sb = sb & "  <!-- ROUTES -->" & vbCrLf
+
+    For Each routeRow In routes
+
+        routeId = CStr(routeRow(KEY_ID))
+        routeDef = Trim$(CStr(routeRow(KEY_ROUTEDEF)))
+
+        If Len(routeDef) > 0 Then
+
+            On Error GoTo RouteSvgFailed
+
+            Set routePoints = ParseRouteToPoints( _
+                routeDef, _
+                shapeIndex, _
+                fullGrid _
+            )
+
+            sb = sb & BuildRoutePolylineSvg( _
+                routeId, _
+                routeDef, _
+                routePoints _
+            )
+
+            On Error GoTo 0
+
+        End If
+
+ContinueRouteLoop:
+    Next routeRow
+
+    sb = sb & "  <!-- END ROUTES -->" & vbCrLf
+
+    BuildRoutesSvg = sb
+
+    Exit Function
+
+RouteSvgFailed:
+
+    Err.Raise vbObjectError + 3600, _
+              "BuildRoutesSvg", _
+              "Failed building SVG route '" & routeId & _
+              "' with definition '" & routeDef & "'. " & _
+              Err.Description
+
+End Function
+
+Private Function BuildRoutePolylineSvg( _
+    ByVal routeId As String, _
+    ByVal routeDef As String, _
+    ByVal routePoints As Collection) As String
+
+    Dim sb As String
+    Dim pointsText As String
+    Dim i As Long
+    Dim point As Object
+    Dim safeRouteId As String
+
+    If routePoints Is Nothing Then
+        BuildRoutePolylineSvg = vbNullString
+        Exit Function
+    End If
+
+    If routePoints.Count < 2 Then
+        BuildRoutePolylineSvg = vbNullString
+        Exit Function
+    End If
+
+    safeRouteId = XmlSafeAttribute(routeId)
+
+    For i = 1 To routePoints.Count
+
+        Set point = routePoints(i)
+
+        If Len(pointsText) > 0 Then
+            pointsText = pointsText & " "
+        End If
+
+        pointsText = pointsText & _
+            SvgNum(CDbl(point(POINT_X))) & "," & _
+            SvgNum(CDbl(point(POINT_Y)))
+
+    Next i
+
+    sb = sb & "  <polyline" & _
+              " id=""route-" & safeRouteId & """" & _
+              " points=""" & pointsText & """" & _
+              " fill=""none""" & _
+              " stroke=""#000000""" & _
+              " stroke-width=""4""" & _
+              " stroke-linecap=""round""" & _
+              " stroke-linejoin=""round""" & _
+              ">" & vbCrLf
+
+    sb = sb & "    <title>" & _
+              XmlSafeText(routeId & ": " & routeDef) & _
+              "</title>" & vbCrLf
+
+    sb = sb & "  </polyline>" & vbCrLf
+
+    BuildRoutePolylineSvg = sb
+
+End Function
+
 
 ' ============================================================
 ' Phase 1: Build SHAPEGRID, CORRIDORGRID and FULLGRID
@@ -696,6 +826,32 @@ Private Function GetNthFullGridAxis( _
 
 End Function
 
+Private Function NearestFullGridAxis( _
+    ByVal coordinate As Double, _
+    ByVal fullAxes As Collection) As Double
+
+    Dim i As Long
+    Dim bestAxis As Double
+    Dim bestDistance As Double
+    Dim thisDistance As Double
+
+    bestDistance = 1E+30
+
+    For i = 1 To fullAxes.Count
+
+        thisDistance = Abs( _
+            CDbl(fullAxes(i)) - coordinate)
+
+        If thisDistance < bestDistance Then
+            bestDistance = thisDistance
+            bestAxis = CDbl(fullAxes(i))
+        End If
+
+    Next i
+
+    NearestFullGridAxis = bestAxis
+
+End Function
 
 ' ============================================================
 ' Phase 5: Route parser
@@ -895,7 +1051,9 @@ Private Function ResolveMovementToken( _
 
             targetAxis = GetNthFullGridAxis( _
                 fullGrid("FullX"), _
-                targetX, _
+                NearestFullGridAxis( _
+                    targetX, _
+                    fullGrid("FullX")), _
                 directionCode, _
                 distanceCount _
             )
@@ -906,7 +1064,9 @@ Private Function ResolveMovementToken( _
 
             targetAxis = GetNthFullGridAxis( _
                 fullGrid("FullY"), _
-                targetY, _
+                NearestFullGridAxis( _
+                    targetY, _
+                    fullGrid("FullY")), _
                 directionCode, _
                 distanceCount _
             )

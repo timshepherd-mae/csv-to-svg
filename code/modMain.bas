@@ -120,7 +120,8 @@ ContinueLoop:
         
     AnalyseTextLayout shapes
 
-    WriteSvgFile svgPath, shapes, pageSettings
+    WriteSvgFile svgPath, shapes, pageSettings, routes
+
     MsgBox "SVG written:" & vbCrLf & svgPath, vbInformation, "CSV-to-SVG complete"
 
 End Sub
