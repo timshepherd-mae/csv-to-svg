@@ -182,6 +182,25 @@ Public Function BuildRoutesSvg( _
 
     sb = sb & "  <!-- ROUTES -->" & vbCrLf
 
+    sb = sb & " <defs>" & vbCrLf
+
+    For Each routeRow In routes
+
+        routeId = CStr(routeRow(KEY_ID))
+        routeDef = Trim$(CStr(routeRow(KEY_ROUTEDEF)))
+
+        If Len(routeDef) > 0 Then
+
+            sb = sb & BuildRouteMarkerSvg( _
+                routeRow, _
+                pageSettings)
+
+        End If
+
+    Next routeRow
+
+    sb = sb & " </defs>" & vbCrLf
+
     For Each routeRow In routes
 
         routeId = CStr(routeRow(KEY_ID))
@@ -207,7 +226,7 @@ Public Function BuildRoutesSvg( _
 
         End If
 
-ContinueRouteLoop:
+    ContinueRouteLoop:
     Next routeRow
 
     sb = sb & "  <!-- END ROUTES -->" & vbCrLf
@@ -274,7 +293,7 @@ Private Function BuildRoutePolylineSvg( _
         Case "s"
 
             markerStart = _
-                " marker-start=""url(#routeArrowReverse)"""
+                " marker-start=""url(#routeArrowReverse_" & routeId & ")"" "
 
             markerEnd = vbNullString
 
@@ -283,15 +302,15 @@ Private Function BuildRoutePolylineSvg( _
             markerStart = vbNullString
 
             markerEnd = _
-                " marker-end=""url(#routeArrow)"""
+                " marker-end=""url(#routeArrow_" & routeId & ")"" "
 
         Case "b"
 
             markerStart = _
-                " marker-start=""url(#routeArrowReverse)"""
+                " marker-start=""url(#routeArrowReverse_" & routeId & ")"" "
 
             markerEnd = _
-                " marker-end=""url(#routeArrow)"""
+                " marker-end=""url(#routeArrow_" & routeId & ")"" "
 
 
         Case Else
@@ -334,6 +353,91 @@ Private Function BuildRoutePolylineSvg( _
     sb = sb & "  </polyline>" & vbCrLf
 
     BuildRoutePolylineSvg = sb
+
+End Function
+
+Private Function BuildRouteMarkerSvg( _
+    ByVal routeRow As Object, _
+    ByVal pageSettings As Object) As String
+
+    Dim sb As String
+
+    Dim routeId As String
+    Dim routeColour As String
+
+    Dim arrowSize As Double
+    Dim halfArrow As Double
+    Dim arrowLength As Double
+
+    routeId = CStr(routeRow(KEY_ID))
+
+    routeColour = ResolveStringValue( _
+        routeRow, _
+        pageSettings, _
+        KEY_ROUTECOLOUR, _
+        "#000000")
+
+    arrowSize = ResolveDoubleValue( _
+        routeRow, _
+        pageSettings, _
+        KEY_ROUTEARROWSIZE, _
+        6)
+
+    halfArrow = arrowSize / 2
+
+    ' Arrow size represents the pixel width of the arrow base.
+    ' Arrow length is 1.5 × the base width.
+
+    arrowLength = arrowSize * 1.5
+
+    ' --------------------------------------------------
+    ' Forward arrow
+    ' --------------------------------------------------
+
+    sb = sb & "    <marker" & _
+            " id=""routeArrow_" & routeId & """" & _
+            " markerWidth=""" & SvgNum(arrowLength) & """" & _
+            " markerHeight=""" & SvgNum(arrowSize) & """" & _
+            " refX=""" & SvgNum(arrowLength) & """" & _
+            " refY=""" & SvgNum(halfArrow) & """" & _
+            " orient=""auto"">" & vbCrLf
+
+    sb = sb & "      <path" & _
+            " d=""M0,0 L" & _
+            SvgNum(arrowLength) & "," & _
+            SvgNum(halfArrow) & _
+            " L0," & _
+            SvgNum(arrowSize) & _
+            " z""" & _
+            " fill=""" & XmlSafeAttribute(routeColour) & """ />" & vbCrLf
+
+    sb = sb & "    </marker>" & vbCrLf
+
+    ' --------------------------------------------------
+    ' Reverse arrow
+    ' --------------------------------------------------
+
+    sb = sb & "    <marker" & _
+            " id=""routeArrowReverse_" & routeId & """" & _
+            " markerWidth=""" & SvgNum(arrowLength) & """" & _
+            " markerHeight=""" & SvgNum(arrowSize) & """" & _
+            " refX=""0""" & _
+            " refY=""" & SvgNum(halfArrow) & """" & _
+            " orient=""auto"">" & vbCrLf
+
+    sb = sb & "      <path" & _
+            " d=""M" & _
+            SvgNum(arrowLength) & ",0 L0," & _
+            SvgNum(halfArrow) & _
+            " L" & _
+            SvgNum(arrowLength) & "," & _
+            SvgNum(arrowSize) & _
+            " z""" & _
+            " fill=""" & XmlSafeAttribute(routeColour) & """ />" & vbCrLf
+
+    sb = sb & "    </marker>" & vbCrLf
+
+    BuildRouteMarkerSvg = sb
 
 End Function
 
