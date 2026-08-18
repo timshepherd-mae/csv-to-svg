@@ -30,6 +30,11 @@ Public Function ParseShapeRow(ByVal csvLine As String, ByVal keyToIndex As Objec
 
         shape(KEY_HGRID) = GetFieldValue(fields, keyToIndex, KEY_HGRID)
         shape(KEY_VGRID) = GetFieldValue(fields, keyToIndex, KEY_VGRID)
+
+        shape(KEY_ROUTECOLOUR) = GetFieldValue(fields, keyToIndex, KEY_ROUTECOLOUR)
+        shape(KEY_ROUTEWIDTH) = GetFieldValue(fields, keyToIndex, KEY_ROUTEWIDTH)
+        shape(KEY_ROUTEARROWSIZE) = GetFieldValue(fields, keyToIndex, KEY_ROUTEARROWSIZE)
+        shape(KEY_ROUTEARROWTYPE) = GetFieldValue(fields, keyToIndex, KEY_ROUTEARROWTYPE)
         
     ElseIf LCase$(rowType) = "route" Then
 
@@ -39,6 +44,30 @@ Public Function ParseShapeRow(ByVal csvLine As String, ByVal keyToIndex As Objec
             KEY_ROUTEDEF _
         )
 
+        shape(KEY_ROUTECOLOUR) = GetFieldValue( _
+            fields, _
+            keyToIndex, _
+            KEY_ROUTECOLOUR _
+        )
+
+        shape(KEY_ROUTEWIDTH) = GetFieldValue( _
+            fields, _
+            keyToIndex, _
+            KEY_ROUTEWIDTH _
+        )
+
+        shape(KEY_ROUTEARROWSIZE) = GetFieldValue( _
+            fields, _
+            keyToIndex, _
+            KEY_ROUTEARROWSIZE _
+        )
+
+        shape(KEY_ROUTEARROWTYPE) = GetFieldValue( _
+            fields, _
+            keyToIndex, _
+            KEY_ROUTEARROWTYPE _
+        )
+        
     Else
         shape(KEY_GRIDCOL) = CLng(GetFieldValue(fields, keyToIndex, KEY_GRIDCOL))
         shape(KEY_GRIDROW) = CLng(GetFieldValue(fields, keyToIndex, KEY_GRIDROW))

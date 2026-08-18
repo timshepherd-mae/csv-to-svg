@@ -37,6 +37,26 @@ Public Function BuildSvgText( _
     sb = sb & "    .page-title { font-size: 34px; font-weight: bold; text-anchor: start; dominant-baseline: hanging; }" & vbCrLf
     sb = sb & "    rect { stroke-width: 2; }" & vbCrLf
     sb = sb & "  </style>" & vbCrLf
+
+
+    sb = sb & "  <defs>" & vbCrLf
+    
+    sb = sb & "    <marker" & _
+            " id=""routeArrow""" & _
+            " markerWidth=""20""" & _
+            " markerHeight=""20""" & _
+            " refX=""10""" & _
+            " refY=""6""" & _
+            " orient=""auto"">" & vbCrLf
+
+    sb = sb & "      <path" & _
+            " d=""M0,0 L12,6 L0,12 z""" & _
+            " fill=""black"" />" & vbCrLf
+
+    sb = sb & "    </marker>" & vbCrLf
+
+    sb = sb & "  </defs>" & vbCrLf    
+
     
     sb = sb & "  <rect x=""0"" y=""0""" & _
               " width=""" & canvasWidth & """" & _

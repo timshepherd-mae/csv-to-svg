@@ -31,6 +31,10 @@ Public Const KEY_TOOLTIP As String = "tooltip"
 Public Const KEY_LINKURL As String = "linkurl"
 
 Public Const KEY_ROUTEDEF as String = "routedef"
+Public Const KEY_ROUTECOLOUR As String = "routecolour"
+Public Const KEY_ROUTEWIDTH As String = "routewidth"
+Public Const KEY_ROUTEARROWSIZE As String = "routearrowsize"
+Public Const KEY_ROUTEARROWTYPE As String = "routearrowtype"
 
 ' Internal layout keys
 Public Const KEY_FONT_SIZE As String = "_fontsize"

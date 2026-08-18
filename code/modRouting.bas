@@ -198,8 +198,8 @@ Public Function BuildRoutesSvg( _
             )
 
             sb = sb & BuildRoutePolylineSvg( _
-                routeId, _
-                routeDef, _
+                routeRow, _
+                pageSettings, _
                 routePoints _
             )
 
@@ -227,27 +227,78 @@ RouteSvgFailed:
 End Function
 
 Private Function BuildRoutePolylineSvg( _
-    ByVal routeId As String, _
-    ByVal routeDef As String, _
+    ByVal routeRow As Object, _
+    ByVal pageSettings As Object, _
     ByVal routePoints As Collection) As String
 
     Dim sb As String
+
+    Dim routeId As String
+    Dim routeDef As String
+
+    Dim routeColour As String
+    Dim routeWidth As Double
+    Dim routeArrowType As String
+
+    Dim markerStart As String
+    Dim markerEnd As String
+
     Dim pointsText As String
+
     Dim i As Long
     Dim point As Object
-    Dim safeRouteId As String
 
-    If routePoints Is Nothing Then
-        BuildRoutePolylineSvg = vbNullString
-        Exit Function
-    End If
+    routeId = CStr(routeRow(KEY_ID))
+    routeDef = CStr(routeRow(KEY_ROUTEDEF))
 
-    If routePoints.Count < 2 Then
-        BuildRoutePolylineSvg = vbNullString
-        Exit Function
-    End If
+    routeColour = ResolveStringValue( _
+        routeRow, _
+        pageSettings, _
+        KEY_ROUTECOLOUR, _
+        "#000000")
 
-    safeRouteId = XmlSafeAttribute(routeId)
+    routeWidth = ResolveDoubleValue( _
+        routeRow, _
+        pageSettings, _
+        KEY_ROUTEWIDTH, _
+        4)
+
+    routeArrowType = LCase$(ResolveStringValue( _
+        routeRow, _
+        pageSettings, _
+        KEY_ROUTEARROWTYPE, _
+        "e"))
+
+    Select Case routeArrowType
+
+        Case "s"
+
+            markerStart = _
+                " marker-start=""url(#routeArrow)"""
+
+            markerEnd = vbNullString
+
+        Case "e"
+
+            markerStart = vbNullString
+
+            markerEnd = _
+                " marker-end=""url(#routeArrow)"""
+
+        Case "b"
+
+            markerStart = _
+                " marker-start=""url(#routeArrow)"""
+
+            markerEnd = _
+                " marker-end=""url(#routeArrow)"""
+
+        Case Else
+
+            markerStart = vbNullString
+            markerEnd = vbNullString
+
+    End Select
 
     For i = 1 To routePoints.Count
 
@@ -264,11 +315,13 @@ Private Function BuildRoutePolylineSvg( _
     Next i
 
     sb = sb & "  <polyline" & _
-              " id=""route-" & safeRouteId & """" & _
+              " id=""route-" & XmlSafeAttribute(routeId) & """" & _
               " points=""" & pointsText & """" & _
               " fill=""none""" & _
-              " stroke=""#000000""" & _
-              " stroke-width=""4""" & _
+              " stroke=""" & routeColour & """" & _
+              " stroke-width=""" & SvgNum(routeWidth) & """" & _
+              markerStart & _
+              markerEnd & _
               " stroke-linecap=""round""" & _
               " stroke-linejoin=""round""" & _
               ">" & vbCrLf
@@ -280,6 +333,67 @@ Private Function BuildRoutePolylineSvg( _
     sb = sb & "  </polyline>" & vbCrLf
 
     BuildRoutePolylineSvg = sb
+
+End Function
+
+Private Function ResolveStringValue( _
+    ByVal routeRow As Object, _
+    ByVal pageSettings As Object, _
+    ByVal key As String, _
+    ByVal defaultValue As String) As String
+
+    Dim valueText As String
+
+    valueText = Trim$(CStr(routeRow(key)))
+
+    If Len(valueText) > 0 Then
+
+        ResolveStringValue = valueText
+        Exit Function
+
+    End If
+
+    valueText = Trim$(CStr(pageSettings(key)))
+
+    If Len(valueText) > 0 Then
+
+        ResolveStringValue = valueText
+        Exit Function
+
+    End If
+
+    ResolveStringValue = defaultValue
+
+End Function
+
+
+Private Function ResolveDoubleValue( _
+    ByVal routeRow As Object, _
+    ByVal pageSettings As Object, _
+    ByVal key As String, _
+    ByVal defaultValue As Double) As Double
+
+    Dim valueText As String
+
+    valueText = Trim$(CStr(routeRow(key)))
+
+    If Len(valueText) > 0 Then
+
+        ResolveDoubleValue = CDbl(valueText)
+        Exit Function
+
+    End If
+
+    valueText = Trim$(CStr(pageSettings(key)))
+
+    If Len(valueText) > 0 Then
+
+        ResolveDoubleValue = CDbl(valueText)
+        Exit Function
+
+    End If
+
+    ResolveDoubleValue = defaultValue
 
 End Function
 
