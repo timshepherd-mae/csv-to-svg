@@ -216,6 +216,12 @@ Public Function BuildRoutesSvg( _
                 fullGrid _
             )
 
+            sb = sb & BuildRouteMaskPolylineSvg( _
+                routeRow, _
+                pageSettings, _
+                routePoints _
+            )
+
             sb = sb & BuildRoutePolylineSvg( _
                 routeRow, _
                 pageSettings, _
@@ -353,6 +359,67 @@ Private Function BuildRoutePolylineSvg( _
     sb = sb & "  </polyline>" & vbCrLf
 
     BuildRoutePolylineSvg = sb
+
+End Function
+
+Private Function BuildRouteMaskPolylineSvg( _
+    ByVal routeRow As Object, _
+    ByVal pageSettings As Object, _
+    ByVal routePoints As Collection) As String
+
+    Dim sb As String
+
+    Dim backgroundColour As String
+    Dim routeWidth As Double
+    Dim maskOffset As Double
+
+    Dim pointsText As String
+
+    Dim i As Long
+    Dim point As Object
+
+    backgroundColour = _
+        CStr(pageSettings(KEY_BACKGROUND))
+
+    routeWidth = ResolveDoubleValue( _
+        routeRow, _
+        pageSettings, _
+        KEY_ROUTEWIDTH, _
+        4)
+
+    maskOffset = ResolveDoubleValue( _
+        routeRow, _
+        pageSettings, _
+        KEY_MASKOFFSET, _
+        3)
+
+    For i = 1 To routePoints.Count
+
+        Set point = routePoints(i)
+
+        If Len(pointsText) > 0 Then
+            pointsText = pointsText & " "
+        End If
+
+        pointsText = pointsText & _
+            SvgNum(CDbl(point(POINT_X))) & "," & _
+            SvgNum(CDbl(point(POINT_Y)))
+
+    Next i
+
+    sb = sb & _
+        "  <polyline" & _
+        " points=""" & pointsText & """" & _
+        " fill=""none""" & _
+        " stroke=""" & _
+        XmlSafeAttribute(backgroundColour) & """" & _
+        " stroke-width=""" & _
+        SvgNum(routeWidth + (maskOffset * 2)) & """" & _
+        " stroke-linecap=""round""" & _
+        " stroke-linejoin=""round""" & _
+        " />" & vbCrLf
+
+    BuildRouteMaskPolylineSvg = sb
 
 End Function
 

@@ -93,7 +93,9 @@ Public Sub BuildSvgFromCsv(ByVal csvPath As String)
             pageSettings(KEY_ROUTECOLOUR) = rowData(KEY_ROUTECOLOUR)
             pageSettings(KEY_ROUTEWIDTH) = rowData(KEY_ROUTEWIDTH)
             pageSettings(KEY_ROUTEARROWSIZE) = rowData(KEY_ROUTEARROWSIZE)
-            pageSettings(KEY_ROUTEARROWTYPE) = rowData(KEY_ROUTEARROWTYPE)            
+            pageSettings(KEY_ROUTEARROWTYPE) = rowData(KEY_ROUTEARROWTYPE)
+            
+            pageSettings(KEY_MASKOFFSET) = rowData(KEY_MASKOFFSET)
     
         ElseIf LCase$(rowType) = "rect" Then
     

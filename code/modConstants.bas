@@ -35,6 +35,7 @@ Public Const KEY_ROUTECOLOUR As String = "routecolour"
 Public Const KEY_ROUTEWIDTH As String = "routewidth"
 Public Const KEY_ROUTEARROWSIZE As String = "routearrowsize"
 Public Const KEY_ROUTEARROWTYPE As String = "routearrowtype"
+Public Const KEY_MASKOFFSET As String = "maskoffset"
 
 ' Internal layout keys
 Public Const KEY_FONT_SIZE As String = "_fontsize"

@@ -35,6 +35,8 @@ Public Function ParseShapeRow(ByVal csvLine As String, ByVal keyToIndex As Objec
         shape(KEY_ROUTEWIDTH) = GetFieldValue(fields, keyToIndex, KEY_ROUTEWIDTH)
         shape(KEY_ROUTEARROWSIZE) = GetFieldValue(fields, keyToIndex, KEY_ROUTEARROWSIZE)
         shape(KEY_ROUTEARROWTYPE) = GetFieldValue(fields, keyToIndex, KEY_ROUTEARROWTYPE)
+
+        shape(KEY_MASKOFFSET) = GetFieldValue(fields, keyToIndex, KEY_MASKOFFSET)
         
     ElseIf LCase$(rowType) = "route" Then
 
