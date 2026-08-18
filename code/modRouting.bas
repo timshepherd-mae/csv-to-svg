@@ -193,7 +193,8 @@ Public Function BuildRoutesSvg( _
 
             sb = sb & BuildRouteMarkerSvg( _
                 routeRow, _
-                pageSettings)
+                pageSettings, _
+                shapeIndex)
 
         End If
 
@@ -219,12 +220,14 @@ Public Function BuildRoutesSvg( _
             sb = sb & BuildRouteMaskPolylineSvg( _
                 routeRow, _
                 pageSettings, _
+                shapeIndex, _
                 routePoints _
             )
 
             sb = sb & BuildRoutePolylineSvg( _
                 routeRow, _
                 pageSettings, _
+                shapeIndex, _
                 routePoints _
             )
 
@@ -251,9 +254,77 @@ RouteSvgFailed:
 
 End Function
 
+Private Function ResolveRouteColour( _
+    ByVal routeRow As Object, _
+    ByVal pageSettings As Object, _
+    ByVal shapes As Collection, _
+    ByVal shapeIndex As Object) As String
+
+    Dim routeColour As String
+
+    Dim routeDef As String
+    Dim tokens As Variant
+
+    Dim startShapeId As String
+    Dim endShapeId As String
+
+    Dim parts As Variant
+
+    Dim shape As Object
+
+    routeColour = LCase$(Trim$(ResolveStringValue( _
+        routeRow, _
+        pageSettings, _
+        KEY_ROUTECOLOUR, _
+        "#000000")))
+
+    Select Case routeColour
+
+        Case "s"
+
+            routeDef = CStr(routeRow(KEY_ROUTEDEF))
+
+            tokens = Split(routeDef, "|")
+
+            parts = Split(CStr(tokens(0)), "-")
+
+            startShapeId = Trim$(CStr(parts(0)))
+
+            Set shape = GetShapeById( _
+                shapeIndex, _
+                startShapeId)
+
+            ResolveRouteColour = _
+                CStr(shape(KEY_STROKECOL))
+
+        Case "e"
+
+            routeDef = CStr(routeRow(KEY_ROUTEDEF))
+
+            tokens = Split(routeDef, "|")
+
+            endShapeId = _
+                Trim$(CStr(tokens(UBound(tokens))))
+
+            Set shape = GetShapeById( _
+                shapeIndex, _
+                endShapeId)
+
+            ResolveRouteColour = _
+                CStr(shape(KEY_STROKECOL))
+
+        Case Else
+
+            ResolveRouteColour = routeColour
+
+    End Select
+
+End Function
+
 Private Function BuildRoutePolylineSvg( _
     ByVal routeRow As Object, _
     ByVal pageSettings As Object, _
+    ByVal shapeIndex as Object, _
     ByVal routePoints As Collection) As String
 
     Dim sb As String
@@ -276,11 +347,11 @@ Private Function BuildRoutePolylineSvg( _
     routeId = CStr(routeRow(KEY_ID))
     routeDef = CStr(routeRow(KEY_ROUTEDEF))
 
-    routeColour = ResolveStringValue( _
+    routeColour = ResolveRouteColour( _
         routeRow, _
         pageSettings, _
-        KEY_ROUTECOLOUR, _
-        "#000000")
+        Nothing, _
+        shapeIndex)
 
     routeWidth = ResolveDoubleValue( _
         routeRow, _
@@ -365,6 +436,7 @@ End Function
 Private Function BuildRouteMaskPolylineSvg( _
     ByVal routeRow As Object, _
     ByVal pageSettings As Object, _
+    ByVal shapeIndex as Object, _
     ByVal routePoints As Collection) As String
 
     Dim sb As String
@@ -425,7 +497,8 @@ End Function
 
 Private Function BuildRouteMarkerSvg( _
     ByVal routeRow As Object, _
-    ByVal pageSettings As Object) As String
+    ByVal pageSettings As Object, _
+    ByVal shapeIndex as Object) As String
 
     Dim sb As String
 
@@ -438,11 +511,11 @@ Private Function BuildRouteMarkerSvg( _
 
     routeId = CStr(routeRow(KEY_ID))
 
-    routeColour = ResolveStringValue( _
+    routeColour = ResolveRouteColour( _
         routeRow, _
         pageSettings, _
-        KEY_ROUTECOLOUR, _
-        "#000000")
+        Nothing, _
+        shapeIndex)
 
     arrowSize = ResolveDoubleValue( _
         routeRow, _
