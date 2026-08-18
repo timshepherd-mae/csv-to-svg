@@ -274,7 +274,7 @@ Private Function BuildRoutePolylineSvg( _
         Case "s"
 
             markerStart = _
-                " marker-start=""url(#routeArrow)"""
+                " marker-start=""url(#routeArrowReverse)"""
 
             markerEnd = vbNullString
 
@@ -288,10 +288,11 @@ Private Function BuildRoutePolylineSvg( _
         Case "b"
 
             markerStart = _
-                " marker-start=""url(#routeArrow)"""
+                " marker-start=""url(#routeArrowReverse)"""
 
             markerEnd = _
                 " marker-end=""url(#routeArrow)"""
+
 
         Case Else
 
